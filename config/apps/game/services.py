@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from django.db import transaction
 from django.db.models import F
 from django.utils import timezone
@@ -133,6 +135,8 @@ def submit_answer(session, question_id, selected_index):
             user=session.user,
             question=question,
         ).update(times_correct=F('times_correct') + 1)
+        session.user.total_xp = F('total_xp') + 10
+        session.user.save(update_fields=['total_xp'])
     else:
         Question.objects.filter(id=question.id).update(
             times_incorrect=F('times_incorrect') + 1
@@ -194,14 +198,27 @@ def ensure_active(session):
 
 def _update_user_progress(session):
     user = session.user
+    today = timezone.localdate()
+    yesterday = today - timedelta(days=1)
+    if user.last_played_date == today:
+        new_streak = user.current_streak
+    elif user.last_played_date == yesterday:
+        new_streak = user.current_streak + 1
+    else:
+        new_streak = 1
+
     user.highest_level_unlocked = max(
         user.highest_level_unlocked,
         session.current_level,
     )
-    user.last_played_date = timezone.localdate()
+    user.current_streak = new_streak
+    user.longest_streak = max(user.longest_streak, new_streak)
+    user.last_played_date = today
     user.save(
         update_fields=[
             'highest_level_unlocked',
+            'current_streak',
+            'longest_streak',
             'last_played_date',
         ]
     )

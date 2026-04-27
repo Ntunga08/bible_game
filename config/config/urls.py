@@ -22,4 +22,8 @@ urlpatterns = [
     path('api/v1/auth/', include('apps.accounts.urls')),
     path('api/', include('apps.questions.urls')),
     path('api/game/', include('apps.game.urls')),
+    path('api/v1/', include('apps.questions.urls')),
+    path('api/v1/game/', include('apps.game.urls')),
+    path('api/v1/daily/', include('apps.daily.urls')),
+    path('api/v1/leaderboard/', include('apps.learderboard.urls')),
 ]
