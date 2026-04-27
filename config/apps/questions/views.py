@@ -5,6 +5,7 @@ from rest_framework.permissions import AllowAny, IsAdminUser
 from rest_framework.response import Response
 
 from apps.game.models import UserQuestionHistory
+from apps.game.services import select_distinct_concepts
 
 from .models import Category, Question
 from .serializers import (
@@ -86,7 +87,7 @@ class QuestionViewSet(viewsets.ModelViewSet):
             if fresh_queryset.exists():
                 queryset = fresh_queryset
 
-        questions = list(queryset.order_by('times_served', '?')[:count])
+        questions = select_distinct_concepts(queryset.order_by('times_served', '?'), count)
 
         if not questions:
             return Response([], status=status.HTTP_200_OK)

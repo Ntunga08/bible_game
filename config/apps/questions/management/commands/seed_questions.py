@@ -1,3 +1,6 @@
+import hashlib
+import random
+
 from django.core.management.base import BaseCommand
 
 from apps.questions.models import Category, Question
@@ -135,23 +138,27 @@ class Command(BaseCommand):
         categories = self.seed_categories()
         created = 0
         updated = 0
+        archived = Question.objects.filter(
+            reviewer_notes='Manual seed question.',
+            status='approved',
+        ).update(status='archived')
 
         for level, facts in LEVEL_FACTS.items():
-            for variant in range(5):
-                for index, fact in enumerate(facts, start=1):
-                    question_data = self.build_question(level, variant, index, fact, categories)
-                    _, was_created = Question.objects.update_or_create(
-                        question_text=question_data['question_text'],
-                        defaults=question_data,
-                    )
-                    if was_created:
-                        created += 1
-                    else:
-                        updated += 1
+            for index, fact in enumerate(facts, start=1):
+                question_data = self.build_question(level, index, fact, categories)
+                _, was_created = Question.objects.update_or_create(
+                    question_text=question_data['question_text'],
+                    defaults=question_data,
+                )
+                if was_created:
+                    created += 1
+                else:
+                    updated += 1
 
         self.stdout.write(
             self.style.SUCCESS(
-                f'Seeded questions complete. Created: {created}. Updated: {updated}.'
+                'Seeded questions complete. '
+                f'Created: {created}. Updated: {updated}. Archived old variants: {archived}.'
             )
         )
 
@@ -165,7 +172,7 @@ class Command(BaseCommand):
             categories[name] = category
         return categories
 
-    def build_question(self, level, variant, index, fact, categories):
+    def build_question(self, level, index, fact, categories):
         (
             question_text,
             options,
@@ -178,18 +185,16 @@ class Command(BaseCommand):
             topic_tags,
             book_name,
         ) = fact
-        suffixes = [
-            'Choose the correct answer.',
-            'Select the best answer.',
-            'Which option is correct?',
-            'Pick the accurate Bible answer.',
-            'Choose the answer that fits Scripture.',
-        ]
+        shuffled_options, shuffled_correct_index = self.shuffle_options(
+            options,
+            correct_index,
+            seed=f'{level}:{index}:{question_text}',
+        )
 
         return {
-            'question_text': f'Level {level}.{index:02d}: {question_text} {suffixes[variant]}',
-            'options': options,
-            'correct_index': correct_index,
+            'question_text': f'Level {level}.{index:02d}: {question_text}',
+            'options': shuffled_options,
+            'correct_index': shuffled_correct_index,
             'explanation': explanation,
             'bible_reference': bible_reference,
             'full_verse_text': '',
@@ -200,8 +205,16 @@ class Command(BaseCommand):
             'topic_tags': topic_tags,
             'book_name': book_name,
             'status': 'approved',
-            'quality_score': round(4.0 + (variant * 0.2), 1),
+            'quality_score': 4.5,
             'ai_generated': False,
             'generation_model': '',
             'reviewer_notes': 'Manual seed question.',
         }
+
+    def shuffle_options(self, options, correct_index, seed):
+        correct_answer = options[correct_index]
+        shuffled_options = list(options)
+        digest = hashlib.sha256(seed.encode('utf-8')).hexdigest()
+        rng = random.Random(int(digest[:16], 16))
+        rng.shuffle(shuffled_options)
+        return shuffled_options, shuffled_options.index(correct_answer)

@@ -1,4 +1,5 @@
 from datetime import timedelta
+import re
 
 from django.db import transaction
 from django.db.models import F
@@ -55,14 +56,15 @@ def serve_questions(session):
         'question_id',
         flat=True,
     )
-    questions = list(
+    queryset = (
         Question.objects.filter(
             difficulty=session.current_level,
             status='approved',
         )
         .exclude(id__in=used_ids)
-        .order_by('times_served', '?')[:QUESTIONS_PER_LEVEL]
+        .order_by('times_served', '?')
     )
+    questions = select_distinct_concepts(queryset, QUESTIONS_PER_LEVEL)
 
     if len(questions) < QUESTIONS_PER_LEVEL:
         raise ValidationError(
@@ -237,3 +239,39 @@ def _update_user_progress(session, completed_level_5=False):
     user.save(
         update_fields=update_fields
     )
+
+
+def select_distinct_concepts(queryset, count):
+    questions = []
+    seen_concepts = set()
+
+    for question in queryset[: count * 4]:
+        concept = question_concept_key(question.question_text)
+        if concept in seen_concepts:
+            continue
+        seen_concepts.add(concept)
+        questions.append(question)
+        if len(questions) == count:
+            break
+
+    if len(questions) < count:
+        fallback_ids = {question.id for question in questions}
+        for question in queryset.exclude(id__in=fallback_ids)[: count - len(questions)]:
+            questions.append(question)
+
+    return questions
+
+
+def question_concept_key(question_text):
+    text = re.sub(r'^Level\s+\d+\.\d+:\s*', '', question_text).strip().lower()
+    suffixes = [
+        'choose the correct answer.',
+        'select the best answer.',
+        'which option is correct?',
+        'pick the accurate bible answer.',
+        'choose the answer that fits scripture.',
+    ]
+    for suffix in suffixes:
+        if text.endswith(suffix):
+            text = text[: -len(suffix)].strip()
+    return re.sub(r'\s+', ' ', text)

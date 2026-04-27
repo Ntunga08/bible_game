@@ -190,12 +190,14 @@ class QuestionApiTests(APITestCase):
 
 
 class SeedQuestionsCommandTests(APITestCase):
-    def test_seed_questions_creates_categories_and_500_manual_questions(self):
+    def test_seed_questions_creates_categories_and_100_varied_manual_questions(self):
         call_command('seed_questions', verbosity=0)
 
         self.assertEqual(Category.objects.count(), 7)
-        self.assertEqual(Question.objects.count(), 500)
-        self.assertEqual(Question.objects.filter(status='approved').count(), 500)
-        self.assertEqual(Question.objects.filter(ai_generated=False).count(), 500)
+        self.assertEqual(Question.objects.count(), 100)
+        self.assertEqual(Question.objects.filter(status='approved').count(), 100)
+        self.assertEqual(Question.objects.filter(ai_generated=False).count(), 100)
         for level in range(1, 6):
-            self.assertEqual(Question.objects.filter(difficulty=level).count(), 100)
+            self.assertEqual(Question.objects.filter(difficulty=level).count(), 20)
+
+        self.assertGreater(Question.objects.exclude(correct_index=0).count(), 0)
