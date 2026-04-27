@@ -117,3 +117,38 @@ Run tests:
 ```bash
 python config/manage.py test apps.accounts apps.questions apps.game apps.daily apps.learderboard
 ```
+
+## Production Hosting
+
+The Django backend is prepared for Railway or Render.
+
+Install command:
+
+```bash
+pip install -r requirements.txt
+```
+
+Build command:
+
+```bash
+./build.sh
+```
+
+Start command:
+
+```bash
+cd config && gunicorn config.wsgi:application --bind 0.0.0.0:$PORT
+```
+
+Set these environment variables on the hosting provider:
+
+```txt
+DJANGO_SECRET_KEY=your-production-secret
+DJANGO_DEBUG=False
+DJANGO_ALLOWED_HOSTS=your-backend-domain.onrender.com,your-backend-domain.up.railway.app
+DATABASE_URL=your-postgres-url
+CORS_ALLOWED_ORIGINS=https://your-netlify-site.netlify.app
+CSRF_TRUSTED_ORIGINS=https://your-netlify-site.netlify.app
+SESSION_COOKIE_SECURE=True
+CSRF_COOKIE_SECURE=True
+```
