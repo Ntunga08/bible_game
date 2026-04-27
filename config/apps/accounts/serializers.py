@@ -91,6 +91,8 @@ class UserProfileSerializer(serializers.ModelSerializer):
             'longest_streak',
             'last_played_date',
             'highest_level_unlocked',
+            'has_unlocked_daily_challenge',
+            'level_5_completed_at',
             'date_joined',
         ]
         read_only_fields = [
@@ -100,6 +102,8 @@ class UserProfileSerializer(serializers.ModelSerializer):
             'longest_streak',
             'last_played_date',
             'highest_level_unlocked',
+            'has_unlocked_daily_challenge',
+            'level_5_completed_at',
             'date_joined',
         ]
 

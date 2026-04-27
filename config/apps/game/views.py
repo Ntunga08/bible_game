@@ -25,7 +25,12 @@ class StartGameView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        session = start_game(request.user)
+        level = request.data.get('level', 1)
+        try:
+            level = int(level)
+        except (TypeError, ValueError):
+            level = 1
+        session = start_game(request.user, level=level)
         return Response(
             StartGameSerializer(session).data,
             status=status.HTTP_201_CREATED,

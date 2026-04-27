@@ -156,6 +156,8 @@ class UserStatsView(APIView):
                 'longest_streak': user.longest_streak,
                 'last_played_date': user.last_played_date,
                 'highest_level_unlocked': user.highest_level_unlocked,
+                'has_unlocked_daily_challenge': user.has_unlocked_daily_challenge,
+                'level_5_completed_at': user.level_5_completed_at,
                 'avatar': user.avatar,
                 'member_since': user.date_joined,
             },

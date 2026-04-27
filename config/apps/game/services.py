@@ -15,11 +15,16 @@ PASSING_SCORE = 7
 MAX_LEVEL = 5
 
 
-def start_game(user):
+def start_game(user, level=1):
+    if level < 1 or level > MAX_LEVEL:
+        raise ValidationError({'level': 'Level must be between 1 and 5.'})
+    if level > user.highest_level_unlocked:
+        raise ValidationError({'level': 'This level is not unlocked yet.'})
+
     return GameSession.objects.create(
         user=user,
-        current_level=1,
-        difficulty_level=1,
+        current_level=level,
+        difficulty_level=level,
         score=0,
         total_questions=QUESTIONS_PER_LEVEL,
         correct_answers=0,

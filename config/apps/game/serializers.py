@@ -24,7 +24,7 @@ class StartGameSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = GameSession
-        fields = ['session_id']
+        fields = ['session_id', 'current_level']
 
 
 class GameQuestionSerializer(serializers.ModelSerializer):
