@@ -1,144 +1,136 @@
-from datetime import timedelta
-
-from django.db import transaction
-from django.db.models import F
-from django.utils import timezone
 from rest_framework import status
-from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.questions.models import Question
-
-from .models import DailyChallenge, DailyChallengeAttempt
+from .models import DailyChallengeAttempt
 from .serializers import (
-    DailyChallengeAttemptSerializer,
-    DailyChallengeSerializer,
-    DailySubmitSerializer,
+    DailyAnswerSerializer,
+    DailyAttemptHistorySerializer,
+    DailyChallengeTodaySerializer,
+    DailyCompleteSerializer,
+    DailyLeaderboardSerializer,
+    DailyStartSerializer,
 )
-
-
-QUESTIONS_PER_DAILY = 10
-XP_PER_CORRECT = 10
+from .services import (
+    answer_daily_question,
+    complete_daily_attempt,
+    ensure_daily_unlocked,
+    get_or_create_today_challenge,
+    rank_for_attempt,
+    start_daily_attempt,
+    todays_completed_attempts,
+)
 
 
 class TodayDailyChallengeView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        ensure_daily_unlocked(request.user)
         challenge = get_or_create_today_challenge()
-        serializer = DailyChallengeSerializer(
-            challenge,
-            context={'request': request},
+        challenge = prefetch_challenge(challenge)
+        data = DailyChallengeTodaySerializer(
+            {
+                'id': challenge.id,
+                'date': challenge.date,
+                'title': challenge.title,
+                'total_questions': challenge.challenge_questions.count(),
+                'already_attempted': DailyChallengeAttempt.objects.filter(
+                    user=request.user,
+                    challenge=challenge,
+                ).exists(),
+                'challenge_questions': challenge.challenge_questions.all(),
+            }
+        ).data
+        return Response(data, status=status.HTTP_200_OK)
+
+
+class StartDailyChallengeView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        attempt = start_daily_attempt(request.user)
+        attempt.challenge = prefetch_challenge(attempt.challenge)
+        return Response(
+            DailyStartSerializer(attempt).data,
+            status=status.HTTP_201_CREATED,
         )
-        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class SubmitDailyAnswerView(APIView):
     permission_classes = [IsAuthenticated]
 
-    @transaction.atomic
     def post(self, request):
-        challenge = get_or_create_today_challenge()
-        if DailyChallengeAttempt.objects.filter(
-            user=request.user,
-            challenge=challenge,
-        ).exists():
-            raise ValidationError({'detail': 'Daily challenge already completed.'})
-
-        serializer = DailySubmitSerializer(data=request.data)
+        serializer = DailyAnswerSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-
-        challenge_questions = {
-            question.id: question
-            for question in challenge.questions.all()
-        }
-        score = 0
-        for answer in serializer.validated_data['answers']:
-            question = challenge_questions.get(answer['question_id'])
-            if question is None:
-                raise ValidationError(
-                    {'answers': 'All answers must belong to today\'s challenge.'}
-                )
-            if answer['selected_index'] == question.correct_index:
-                score += 1
-                Question.objects.filter(id=question.id).update(
-                    times_correct=F('times_correct') + 1
-                )
-            else:
-                Question.objects.filter(id=question.id).update(
-                    times_incorrect=F('times_incorrect') + 1
-                )
-
-        xp_earned = score * XP_PER_CORRECT
-        attempt = DailyChallengeAttempt.objects.create(
+        question, is_correct = answer_daily_question(
             user=request.user,
-            challenge=challenge,
-            score=score,
-            xp_earned=xp_earned,
+            attempt_id=serializer.validated_data['attempt_id'],
+            question_id=serializer.validated_data['question_id'],
+            selected_index=serializer.validated_data['selected_index'],
+            time_taken_seconds=serializer.validated_data.get('time_taken_seconds'),
         )
-        update_user_daily_progress(request.user, xp_earned)
-
         return Response(
-            DailyChallengeAttemptSerializer(attempt).data,
-            status=status.HTTP_201_CREATED,
+            {
+                'is_correct': is_correct,
+                'correct_index': question.correct_index,
+                'explanation': question.explanation,
+                'bible_reference': question.bible_reference,
+            },
+            status=status.HTTP_200_OK,
         )
+
+
+class CompleteDailyChallengeView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = DailyCompleteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        attempt = complete_daily_attempt(
+            user=request.user,
+            attempt_id=serializer.validated_data['attempt_id'],
+            time_taken_seconds=serializer.validated_data['time_taken_seconds'],
+        )
+        return Response(
+            {
+                'score': attempt.score,
+                'total_questions': attempt.total_questions,
+                'correct_answers': attempt.correct_answers,
+                'wrong_answers': attempt.wrong_answers,
+                'time_taken_seconds': attempt.time_taken_seconds,
+                'rank_today': rank_for_attempt(attempt),
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class DailyLeaderboardView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        ensure_daily_unlocked(request.user)
+        data = [
+            {'rank': index, **DailyLeaderboardSerializer(attempt).data}
+            for index, attempt in enumerate(todays_completed_attempts(), start=1)
+        ]
+        return Response(data, status=status.HTTP_200_OK)
 
 
 class DailyHistoryView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        ensure_daily_unlocked(request.user)
         attempts = DailyChallengeAttempt.objects.select_related('challenge').filter(
             user=request.user,
-        ).order_by('-completed_at')[:30]
-        serializer = DailyChallengeAttemptSerializer(attempts, many=True)
+        ).order_by('-challenge__date')[:30]
+        serializer = DailyAttemptHistorySerializer(attempts, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-def get_or_create_today_challenge():
-    today = timezone.localdate()
-    challenge, created = DailyChallenge.objects.get_or_create(
-        date=today,
-        defaults={'theme': 'Daily Bible Challenge'},
-    )
-    if created or challenge.questions.count() == 0:
-        questions = list(
-            Question.objects.filter(status='approved')
-            .order_by('times_served', '?')[:QUESTIONS_PER_DAILY]
-        )
-        if len(questions) < QUESTIONS_PER_DAILY:
-            raise ValidationError(
-                {'detail': 'Not enough approved questions for today\'s challenge.'}
-            )
-        challenge.questions.set(questions)
-        Question.objects.filter(id__in=[question.id for question in questions]).update(
-            times_served=F('times_served') + 1
-        )
-    return challenge
-
-
-def update_user_daily_progress(user, xp_earned):
-    today = timezone.localdate()
-    yesterday = today - timedelta(days=1)
-
-    if user.last_played_date == today:
-        new_streak = user.current_streak
-    elif user.last_played_date == yesterday:
-        new_streak = user.current_streak + 1
-    else:
-        new_streak = 1
-
-    user.total_xp = F('total_xp') + xp_earned
-    user.current_streak = new_streak
-    user.longest_streak = max(user.longest_streak, new_streak)
-    user.last_played_date = today
-    user.save(
-        update_fields=[
-            'total_xp',
-            'current_streak',
-            'longest_streak',
-            'last_played_date',
-        ]
-    )
+def prefetch_challenge(challenge):
+    return challenge.__class__.objects.prefetch_related(
+        'challenge_questions__question',
+    ).get(id=challenge.id)
