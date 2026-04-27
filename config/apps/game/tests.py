@@ -198,8 +198,11 @@ class GameEngineApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data, {'status': 'passed', 'next_level': None})
         session.refresh_from_db()
+        self.user.refresh_from_db()
         self.assertEqual(session.status, 'completed')
         self.assertIsNotNone(session.ended_at)
+        self.assertTrue(self.user.has_unlocked_daily_challenge)
+        self.assertIsNotNone(self.user.level_5_completed_at)
 
     def test_requires_authentication(self):
         self.client.force_authenticate(user=None)

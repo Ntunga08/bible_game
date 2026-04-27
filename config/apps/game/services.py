@@ -169,7 +169,7 @@ def complete_level(session):
         session.ended_at = timezone.now()
         session.completed_at = session.ended_at
         session.save(update_fields=['status', 'ended_at', 'completed_at'])
-        _update_user_progress(session)
+        _update_user_progress(session, completed_level_5=True)
         return {'status': 'passed', 'next_level': None}
 
     session.current_level += 1
@@ -196,7 +196,7 @@ def ensure_active(session):
         raise ValidationError({'detail': 'This game session is not active.'})
 
 
-def _update_user_progress(session):
+def _update_user_progress(session, completed_level_5=False):
     user = session.user
     today = timezone.localdate()
     yesterday = today - timedelta(days=1)
@@ -214,11 +214,21 @@ def _update_user_progress(session):
     user.current_streak = new_streak
     user.longest_streak = max(user.longest_streak, new_streak)
     user.last_played_date = today
+    update_fields = [
+        'highest_level_unlocked',
+        'current_streak',
+        'longest_streak',
+        'last_played_date',
+    ]
+    if completed_level_5:
+        user.has_unlocked_daily_challenge = True
+        user.level_5_completed_at = timezone.now()
+        update_fields.extend(
+            [
+                'has_unlocked_daily_challenge',
+                'level_5_completed_at',
+            ]
+        )
     user.save(
-        update_fields=[
-            'highest_level_unlocked',
-            'current_streak',
-            'longest_streak',
-            'last_played_date',
-        ]
+        update_fields=update_fields
     )

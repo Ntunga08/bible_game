@@ -12,6 +12,8 @@ class User(AbstractUser):
     longest_streak = models.IntegerField(default=0)
     last_played_date = models.DateField(null=True, blank=True)
     highest_level_unlocked = models.IntegerField(default=1)  # 1-5
+    has_unlocked_daily_challenge = models.BooleanField(default=False)
+    level_5_completed_at = models.DateTimeField(null=True, blank=True)
     avatar = models.CharField(max_length=100, default='scroll')
     created_at = models.DateTimeField(auto_now_add=True)
 
