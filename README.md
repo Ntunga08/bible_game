@@ -1,21 +1,75 @@
 # Bible Quiz Backend
 
-Django REST Framework backend for a Bible quiz game with authentication, question management, game sessions, daily challenges, and leaderboard APIs.
+Bible Quiz Backend is a Django REST Framework project for a Bible trivia game. It handles user accounts, Bible question storage, quiz sessions, daily challenges, scoring, XP, streaks, and leaderboard ranking.
 
-## Setup
+The backend is built for a frontend or mobile app to connect to it. It uses SQLite for local development and JWT authentication for logged-in users.
+
+## Requirements
+
+Install these first:
+
+```txt
+Python 3.12+
+pip
+virtualenv or python -m venv
+```
+
+Python packages used by the project:
+
+```txt
+Django
+djangorestframework
+djangorestframework-simplejwt
+```
+
+## Start The Project
+
+Create and activate a virtual environment:
 
 ```bash
 python -m venv venv
 source venv/bin/activate
+```
+
+On Windows PowerShell:
+
+```bash
+venv\Scripts\Activate.ps1
+```
+
+Install dependencies:
+
+```bash
 pip install django djangorestframework djangorestframework-simplejwt
+```
+
+Create your local environment file:
+
+```bash
 cp .env.example .env
+```
+
+Apply database migrations:
+
+```bash
 python config/manage.py migrate
+```
+
+Start the development server:
+
+```bash
 python config/manage.py runserver
 ```
 
-The local `.env` file is ignored by Git. Put real secrets there and keep `.env.example` safe for sharing.
+The server will run locally at:
+
+```txt
+http://127.0.0.1:8000/
+```
 
 ## Environment Variables
+
+The local `.env` file is ignored by Git. Put real secrets there and keep `.env.example` safe for sharing.
 
 ```txt
 DJANGO_SECRET_KEY=required secret key
@@ -24,53 +78,42 @@ DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1
 DJANGO_DB_NAME=db.sqlite3
 ```
 
-## Main APIs
-
-Auth:
+## Project Structure
 
 ```txt
-POST /api/v1/auth/register/
-POST /api/v1/auth/login/
-POST /api/v1/auth/logout/
-POST /api/v1/auth/token/refresh/
-GET  /api/v1/auth/me/
-GET  /api/v1/auth/me/stats/
-POST /api/v1/auth/change-password/
+config/
+  manage.py
+  config/              Django project settings and root URLs
+  apps/
+    accounts/          Custom user model, auth, profile, stats
+    questions/         Bible categories and quiz questions
+    game/              Quiz sessions, answers, scoring, progress
+    daily/             Daily challenge attempts
+    learderboard/      Player ranking
 ```
 
-Questions:
+## Useful Commands
+
+Create an admin user:
+
+```bash
+python config/manage.py createsuperuser
+```
+
+Open the Django admin after starting the server:
 
 ```txt
-GET  /api/v1/categories/
-GET  /api/v1/questions/
-GET  /api/v1/questions/level/<1-5>/
-POST /api/v1/questions/check-answer/
+http://127.0.0.1:8000/admin/
 ```
 
-Game:
-
-```txt
-POST /api/v1/game/start/
-GET  /api/v1/game/<session_id>/
-GET  /api/v1/game/<session_id>/questions/
-POST /api/v1/game/answer/
-POST /api/v1/game/<session_id>/complete-level/
-POST /api/v1/game/<session_id>/retry/
-```
-
-Daily and leaderboard:
-
-```txt
-GET  /api/v1/daily/today/
-POST /api/v1/daily/answer/
-GET  /api/v1/daily/history/
-GET  /api/v1/leaderboard/
-GET  /api/v1/leaderboard/me/
-```
-
-## Checks
+Run project checks:
 
 ```bash
 python config/manage.py check
+```
+
+Run tests:
+
+```bash
 python config/manage.py test apps.accounts apps.questions apps.game apps.daily apps.learderboard
 ```
