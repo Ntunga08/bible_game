@@ -5,12 +5,13 @@ from apps.questions.models import Question
 
 
 class GameSession(models.Model):
-    """One complete quiz attempt by a user."""
+    """Tracks a user's playable quiz run across levels."""
 
     LEVEL_CHOICES = [(i, i) for i in range(1, 6)]
 
     STATUS_CHOICES = [
         ('active', 'Active'),
+        ('failed', 'Failed'),
         ('completed', 'Completed'),
         ('abandoned', 'Abandoned'),
     ]
@@ -21,10 +22,12 @@ class GameSession(models.Model):
         on_delete=models.CASCADE,
         related_name='sessions'
     )
-    difficulty_level = models.IntegerField(choices=LEVEL_CHOICES)
+    current_level = models.IntegerField(choices=LEVEL_CHOICES, default=1)
+    difficulty_level = models.IntegerField(choices=LEVEL_CHOICES, default=1)
     questions = models.ManyToManyField(Question, through='SessionQuestion')
 
     # Scoring
+    score = models.IntegerField(default=0)
     total_questions = models.IntegerField(default=10)
     correct_answers = models.IntegerField(default=0)
     xp_earned = models.IntegerField(default=0)
@@ -34,6 +37,7 @@ class GameSession(models.Model):
         max_length=20, choices=STATUS_CHOICES, default='active'
     )
     started_at = models.DateTimeField(auto_now_add=True)
+    ended_at = models.DateTimeField(null=True, blank=True)
     completed_at = models.DateTimeField(null=True, blank=True)
 
     @property
@@ -47,12 +51,13 @@ class GameSession(models.Model):
         ordering = ['-started_at']
 
     def __str__(self):
-        return f"{self.user} — Level {self.difficulty_level} — {self.score_percentage}%"
+        return f"{self.user} — Level {self.current_level} — {self.status}"
 
 
 class SessionQuestion(models.Model):
     """Through model: tracks each question within a session + user's answer."""
 
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     session = models.ForeignKey(GameSession, on_delete=models.CASCADE)
     question = models.ForeignKey(Question, on_delete=models.CASCADE)
     order = models.IntegerField()                        # Position in session (1-10)
