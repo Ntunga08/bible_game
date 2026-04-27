@@ -2,6 +2,7 @@
 
 import django.db.models.deletion
 import uuid
+from django.conf import settings
 from django.db import migrations, models
 
 
@@ -10,65 +11,51 @@ class Migration(migrations.Migration):
     dependencies = [
         ('daily', '0001_initial'),
         ('questions', '0002_alter_question_ai_generated'),
+        migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.RemoveField(
             model_name='dailychallenge',
-            name='theme',
-        ),
-        migrations.RemoveField(
-            model_name='dailychallenge',
             name='questions',
         ),
-        migrations.RemoveField(
-            model_name='dailychallengeattempt',
-            name='xp_earned',
+        migrations.DeleteModel(
+            name='DailyChallengeAttempt',
         ),
-        migrations.AddField(
-            model_name='dailychallenge',
-            name='is_active',
-            field=models.BooleanField(default=True),
+        migrations.DeleteModel(
+            name='DailyChallenge',
         ),
-        migrations.AddField(
-            model_name='dailychallenge',
-            name='title',
-            field=models.CharField(default='Daily Master Challenge', max_length=200),
+        migrations.CreateModel(
+            name='DailyChallenge',
+            fields=[
+                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
+                ('date', models.DateField(db_index=True, unique=True)),
+                ('title', models.CharField(default='Daily Master Challenge', max_length=200)),
+                ('is_active', models.BooleanField(default=True)),
+                ('created_at', models.DateTimeField(auto_now_add=True)),
+            ],
+            options={
+                'db_table': 'daily_challenges',
+                'ordering': ['-date'],
+            },
         ),
-        migrations.AddField(
-            model_name='dailychallengeattempt',
-            name='correct_answers',
-            field=models.IntegerField(default=0),
-        ),
-        migrations.AddField(
-            model_name='dailychallengeattempt',
-            name='time_taken_seconds',
-            field=models.IntegerField(blank=True, null=True),
-        ),
-        migrations.AddField(
-            model_name='dailychallengeattempt',
-            name='total_questions',
-            field=models.IntegerField(default=15),
-        ),
-        migrations.AddField(
-            model_name='dailychallengeattempt',
-            name='wrong_answers',
-            field=models.IntegerField(default=0),
-        ),
-        migrations.AlterField(
-            model_name='dailychallenge',
-            name='id',
-            field=models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False),
-        ),
-        migrations.AlterField(
-            model_name='dailychallengeattempt',
-            name='completed_at',
-            field=models.DateTimeField(blank=True, null=True),
-        ),
-        migrations.AlterField(
-            model_name='dailychallengeattempt',
-            name='id',
-            field=models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False),
+        migrations.CreateModel(
+            name='DailyChallengeAttempt',
+            fields=[
+                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
+                ('score', models.IntegerField(default=0)),
+                ('total_questions', models.IntegerField(default=15)),
+                ('correct_answers', models.IntegerField(default=0)),
+                ('wrong_answers', models.IntegerField(default=0)),
+                ('time_taken_seconds', models.IntegerField(blank=True, null=True)),
+                ('completed_at', models.DateTimeField(blank=True, null=True)),
+                ('challenge', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='attempts', to='daily.dailychallenge')),
+                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='daily_attempts', to=settings.AUTH_USER_MODEL)),
+            ],
+            options={
+                'db_table': 'daily_challenge_attempts',
+                'unique_together': {('user', 'challenge')},
+            },
         ),
         migrations.CreateModel(
             name='DailyChallengeQuestion',
