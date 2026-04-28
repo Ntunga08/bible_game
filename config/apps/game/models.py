@@ -57,7 +57,6 @@ class GameSession(models.Model):
 class SessionQuestion(models.Model):
     """Through model: tracks each question within a session + user's answer."""
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     session = models.ForeignKey(GameSession, on_delete=models.CASCADE)
     question = models.ForeignKey(Question, on_delete=models.CASCADE)
     order = models.IntegerField()                        # Position in session (1-10)
