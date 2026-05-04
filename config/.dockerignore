@@ -1,0 +1,14 @@
+.git
+.codex
+.agents
+__pycache__
+*.py[cod]
+*.sqlite3
+db.sqlite3
+.env
+.venv
+venv
+staticfiles
+.pytest_cache
+.mypy_cache
+.DS_Store
