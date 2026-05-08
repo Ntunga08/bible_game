@@ -9,8 +9,6 @@ from .models import GameSession, SessionQuestion
 
 
 User = get_user_model()
-
-
 class GameEngineApiTests(APITestCase):
     def setUp(self):
         self.user = User.objects.create_user(
@@ -82,6 +80,7 @@ class GameEngineApiTests(APITestCase):
             self.assertEqual(response.status_code, status.HTTP_200_OK)
             self.assertIn('correct_index', response.data)
 
+
     def test_start_game_creates_active_level_one_session(self):
         response = self.client.post(reverse('game-start'))
 
@@ -107,6 +106,8 @@ class GameEngineApiTests(APITestCase):
             10,
         )
 
+
+
     def test_submit_answer_updates_session_and_question_counts(self):
         session_id = self.start_session()
         question = self.get_questions(session_id).data[0]
@@ -126,7 +127,7 @@ class GameEngineApiTests(APITestCase):
         self.assertTrue(response.data['is_correct'])
         session = GameSession.objects.get(id=session_id)
         db_question.refresh_from_db()
-        self.assertEqual(session.correct_answers, 1)
+        self.assertEqual(session.correct_answers, 1) 
         self.assertEqual(session.score, 10)
         self.assertEqual(db_question.times_correct, 1)
 
@@ -138,6 +139,8 @@ class GameEngineApiTests(APITestCase):
         response = self.client.post(
             reverse('game-complete-level', kwargs={'session_id': session_id})
         )
+
+
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data, {'status': 'passed', 'next_level': 2})
@@ -158,6 +161,8 @@ class GameEngineApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data, {'status': 'failed', 'next_level': None})
         self.assertEqual(GameSession.objects.get(id=session_id).status, 'failed')
+
+
 
     def test_retry_keeps_level_and_returns_new_questions(self):
         session_id = self.start_session()

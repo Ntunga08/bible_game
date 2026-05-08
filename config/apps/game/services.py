@@ -275,3 +275,38 @@ def question_concept_key(question_text):
         if text.endswith(suffix):
             text = text[: -len(suffix)].strip()
     return re.sub(r'\s+', ' ', text)
+
+def get_user_progress(user):
+    last_session = GameSession.objects.filter(user=user).order_by('-started_at').first()
+    if not last_session:
+        return {
+            'highest_level_unlocked': 1,
+            'current_streak': 0,
+            'longest_streak': 0,
+            'last_played_date': None,
+            'has_unlocked_daily_challenge': False,
+            'level_5_completed_at': None,
+        }
+    return {
+        'highest_level_unlocked': user.highest_level_unlocked,
+        'current_streak': user.current_streak,
+        'longest_streak': user.longest_streak,
+        'last_played_date': user.last_played_date,
+        'has_unlocked_daily_challenge': user.has_unlocked_daily_challenge,
+        'level_5_completed_at': user.level_5_completed_at,
+    }
+
+def get_leaderboard():
+    return (
+        GameSession.objects.filter(status='completed')
+        .select_related('user')
+        .order_by('-xp_earned', 'ended_at')[:10]
+    )
+
+def get_user_history(user):
+    return (
+        GameSession.objects.filter(user=user)
+        .select_related('user')
+        .order_by('-started_at')
+    )
+
